@@ -85,6 +85,44 @@ class ImpalaEngineSpec(BaseEngineSpec):
         }
 
     @classmethod
+    def get_view_names(
+        cls,
+        database: Database,
+        inspector: Inspector,
+        schema: str | None,
+    ) -> set[str]:
+        """
+        Get all the view names within the specified schema.
+
+        Impala's SQLAlchemy dialect doesn't implement get_view_names(),
+        so we use SHOW VIEWS command directly.
+
+        :param database: The database to inspect
+        :param inspector: The SQLAlchemy inspector
+        :param schema: The schema to inspect
+        :returns: The view names
+        """
+        try:
+            sql = "SHOW VIEWS"
+            if schema:
+                sql += f" IN `{schema}`"
+
+            with database.get_raw_connection(schema=schema) as conn:
+                cursor = conn.cursor()
+                cursor.execute(sql)
+                results = cursor.fetchall()
+                return {row[0] for row in results}
+        except NotImplementedError:
+            # If SHOW VIEWS is not supported, return empty set
+            return set()
+        except Exception as ex:
+            # Log and return empty set on any other error to prevent table loading failures
+            logger.warning(
+                "Unable to fetch views for schema %s: %s", schema, str(ex), exc_info=True
+            )
+            return set()
+
+    @classmethod
     def has_implicit_cancel(cls) -> bool:
         """
         Return True if the live cursor handles the implicit cancelation of the query,
