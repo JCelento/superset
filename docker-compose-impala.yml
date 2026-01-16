@@ -1,0 +1,144 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
+# OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and
+# limitations under the License.
+#
+# Docker Compose file for running Impala locally for testing
+# This is a minimal setup for development/testing purposes
+# Based on Apache Impala quickstart configuration
+
+services:
+  hms:
+    image: apache/impala:4.5.0-impala_quickstart_hms
+    container_name: quickstart-hive-metastore
+    hostname: quickstart-hive-metastore
+    command: ["hms"]
+    volumes:
+      - impala-warehouse:/var/lib/hive
+      - impala-warehouse:/user/hive/warehouse
+      - ./docker/impala-conf-hms:/opt/hive/conf:ro
+    networks:
+      impala-network:
+        aliases:
+          - hms
+          - metastore
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f HiveMetaStore || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  statestored:
+    image: apache/impala:4.5.0-statestored
+    container_name: impala-statestored
+    depends_on:
+      hms:
+        condition: service_healthy
+    ports:
+      - "25010:25010"
+    command:
+      - "-redirect_stdout_stderr=false"
+      - "-logtostderr"
+      - "-v=1"
+    networks:
+      - impala-network
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f statestored || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  catalogd:
+    image: apache/impala:4.5.0-catalogd
+    container_name: impala-catalogd
+    depends_on:
+      statestored:
+        condition: service_healthy
+      hms:
+        condition: service_healthy
+    ports:
+      - "25020:25020"
+    command:
+      - "-redirect_stdout_stderr=false"
+      - "-logtostderr"
+      - "-v=1"
+      - "-hms_event_polling_interval_s=1"
+      - "-invalidate_tables_timeout_s=999999"
+      - "-enable_catalogd_hms_cache=false"
+    volumes:
+      - impala-warehouse:/user/hive/warehouse
+      - ./docker/impala-conf-impala:/opt/impala/conf:ro
+      - ./docker/impala-libs/javax.jdo-3.2.1.jar:/opt/impala/lib/javax.jdo-3.2.1.jar:ro
+      - ./docker/impala-libs/derby-10.14.2.0.jar:/opt/impala/lib/derby-10.14.2.0.jar:ro
+    environment:
+      - QUICKSTART_LISTEN_ADDR=0.0.0.0
+    networks:
+      - impala-network
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f catalogd || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  impalad:
+    image: apache/impala:4.5.0-impalad_coord_exec
+    container_name: impala-impalad
+    depends_on:
+      statestored:
+        condition: service_healthy
+      catalogd:
+        condition: service_healthy
+    ports:
+      - "21000:21000"  # Beeswax port
+      - "21050:21050"  # HS2 port (used by Superset)
+      - "25000:25000"  # Web UI
+      - "28000:28000"  # Debug web UI
+    environment:
+      - JAVA_TOOL_OPTIONS=-Xmx2g
+      - QUICKSTART_LISTEN_ADDR=0.0.0.0
+    volumes:
+      - impala-warehouse:/user/hive/warehouse
+      - ./docker/impala-conf-impala:/opt/impala/conf:ro
+      - ./docker/impala-libs/javax.jdo-3.2.1.jar:/opt/impala/lib/javax.jdo-3.2.1.jar:ro
+      - ./docker/impala-libs/derby-10.14.2.0.jar:/opt/impala/lib/derby-10.14.2.0.jar:ro
+    command:
+      - "-v=1"
+      - "-redirect_stdout_stderr=false"
+      - "-logtostderr"
+      - "-mt_dop_auto_fallback=true"
+      - "-default_query_options=mt_dop=4,default_file_format=parquet,default_transactional_type=insert_only"
+      - "-mem_limit=2gb"
+    networks:
+      - impala-network
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f impalad || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+volumes:
+  impala-warehouse:
+
+networks:
+  impala-network:
+    name: impala-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

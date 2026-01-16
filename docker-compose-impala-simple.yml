@@ -1,0 +1,53 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
+# OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and
+# limitations under the License.
+#
+# Docker Compose file for running Impala all-in-one quickstart
+# This is a single-container setup with Impala and HMS for testing
+# Based on Apache Impala 4.5.0 quickstart_hms image
+
+services:
+  impala:
+    image: apache/impala:4.5.0-impala_quickstart_hms
+    container_name: impala-quickstart
+    hostname: impala
+    ports:
+      - "21000:21000"  # Impala shell / RPC
+      - "21050:21050"  # HS2 port (used by Superset)
+      - "25000:25000"  # Impala web UI
+      - "28000:28000"  # Debug web UI
+      - "9083:9083"    # Hive Metastore
+    volumes:
+      - impala-warehouse:/var/lib/hive
+      - impala-warehouse:/user/hive/warehouse
+    environment:
+      - QUICKSTART_LISTEN_ADDR=0.0.0.0
+    networks:
+      - impala-network
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f impalad && pgrep -f HiveMetaStore || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+
+volumes:
+  impala-warehouse:
+
+networks:
+  impala-network:
+    name: impala-network
+    driver: bridge
