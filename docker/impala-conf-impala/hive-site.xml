@@ -25,32 +25,32 @@ under the License.
     <value>thrift://quickstart-hive-metastore:9083</value>
     <description>Thrift URI for the remote metastore</description>
   </property>
-  
+
   <property>
     <name>hive.metastore.warehouse.dir</name>
     <value>/user/hive/warehouse</value>
     <description>location of default database for the warehouse</description>
   </property>
-  
+
   <property>
     <name>hive.metastore.schema.verification</name>
     <value>false</value>
     <description>Enable automatic schema migration</description>
   </property>
-  
+
   <property>
     <name>hive.metastore.event.db.notification.api.auth</name>
     <value>false</value>
     <description>Disable authentication for event notifications</description>
   </property>
-  
+
   <!-- Disable event notifications to avoid configuration issues -->
   <property>
     <name>hive.metastore.transactional.event.listeners</name>
     <value></value>
     <description>Disable transactional event listeners</description>
   </property>
-  
+
   <property>
     <name>hive.metastore.event.listeners</name>
     <value></value>

@@ -34,13 +34,13 @@ def setup_test_data(host="localhost", port=21050):
         print(f"Connecting to Impala at {host}:{port}...")
         conn = connect(host=host, port=port, auth_mechanism="PLAIN")
         cursor = conn.cursor()
-        
+
         print("Creating database...")
         cursor.execute("CREATE DATABASE IF NOT EXISTS test_db")
-        
+
         print("Using test_db...")
         cursor.execute("USE test_db")
-        
+
         print("Creating table...")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS rbbn_test (
@@ -49,11 +49,11 @@ def setup_test_data(host="localhost", port=21050):
               value DOUBLE
             )
         """)
-        
+
         print("Checking if table has data...")
         cursor.execute("SELECT COUNT(*) FROM rbbn_test")
         count = cursor.fetchone()[0]
-        
+
         if count == 0:
             print("Inserting test data...")
             cursor.execute("""
@@ -67,19 +67,19 @@ def setup_test_data(host="localhost", port=21050):
             print("✅ Test data inserted")
         else:
             print(f"✅ Table already has {count} rows")
-        
+
         print("Verifying data...")
         cursor.execute("SELECT COUNT(*) as total FROM rbbn_test")
         result = cursor.fetchone()
         print(f"✅ Total rows: {result[0]}")
-        
+
         cursor.close()
         conn.close()
-        
+
         print("\n✅ Setup complete!")
         print("\nConnection details for Superset:")
         print(f"  SQLAlchemy URI: impala://{host}:{port}/test_db?auth_mechanism=PLAIN")
-        
+
     except Exception as e:
         print(f"❌ Error: {e}")
         print("\nMake sure:")
@@ -94,5 +94,5 @@ if __name__ == "__main__":
     parser.add_argument("--host", default="localhost", help="Impala host (default: localhost)")
     parser.add_argument("--port", type=int, default=21050, help="Impala port (default: 21050)")
     args = parser.parse_args()
-    
+
     setup_test_data(args.host, args.port)

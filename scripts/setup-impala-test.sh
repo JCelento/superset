@@ -68,7 +68,7 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
         echo "✅ Impala is ready!"
         break
     fi
-    
+
     ATTEMPT=$((ATTEMPT + 1))
     if [ $((ATTEMPT % 15)) -eq 0 ]; then
         echo "   Still waiting... (${ATTEMPT}/${MAX_ATTEMPTS})"
